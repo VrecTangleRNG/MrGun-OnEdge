@@ -1,5 +1,6 @@
 // Import main dependencies
 import { Application, Assets, Sprite } from 'pixi.js';
+import { Tween, Easing } from '@tweenjs/tween.js';
 
 
 (async () => {
@@ -13,23 +14,72 @@ import { Application, Assets, Sprite } from 'pixi.js';
 	});
 	document.body.appendChild(app.canvas);
 
+
 	// Init game objects
 	const playerSprite = await Assets.load('./assets/textures/char0.png');
 	const gunSPrite = await Assets.load('./assets/textures/glock.png');
 	const particleSprite = await Assets.load('./assets/textures/particle.png');
+
 	const player = new Sprite(playerSprite);
 	const gun = new Sprite(gunSPrite);
 	const bullet = new Sprite(particleSprite);
+
 	app.stage.addChild(player);
 	app.stage.addChild(gun);
 	app.stage.addChild(bullet);
 
+	player.position.set(20, app.screen.height - player.height - 20);
+	gun.position.set(player.width * 2 / 3 + 20, app.screen.height - player.height / 2 - 20);
+	gun.anchor.set(0.2, 0.5);
+
+	const aimingSpeed = 2000;
+	let gunCopy = { angle: gun.angle };
+	let aimingTween = new Tween(gunCopy)
+		.to({ angle: -60 }, aimingSpeed)
+		.easing(yoyo(Easing.Linear.InOut))
+		.repeat(Infinity);
+	let lowerGunTween = new Tween(gunCopy)
+		.to({ angle: 0 }, 100)
+		.easing(Easing.Quadratic.Out);
+
 
 	/*----[[ Updates ]]----*/
 	app.ticker.add((time) => {
+		aimingTween.update();
+		lowerGunTween.update();
+		gun.angle = gunCopy.angle;
 	});
 
 
 	/*----[[ Signals ]]----*/
+	// Make canvas able to receive touch input
+	app.stage.eventMode = 'static';
+	app.stage.hitArea = app.screen;
+
+	app.stage.on('pointerdown', () => {
+		aimingTween.start();
+		lowerGunTween.stop();
+	});
+	app.stage.on('pointerup', () => {
+		aimingTween.stop();
+		lowerGunTween.delay(100);
+		lowerGunTween.startFromCurrentValues();
+	});
+	app.stage.on('pointerupoutside', () => {
+		aimingTween.stop();
+		lowerGunTween.delay(100);
+		lowerGunTween.startFromCurrentValues();
+	});
 })();
 
+// Helper functions, TODO: Isolate this
+function yoyo(easingFunction) {
+	return (time) => {
+		if (time < 0.5) {
+			return easingFunction(time * 2);
+		}
+		else {
+			return easingFunction((1 - time) * 2);
+		}
+	};
+}
