@@ -37,12 +37,17 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const player = new Sprite(playerSprite);
 	const bullet = new Sprite(particleSprite);
 	const gun = new Sprite(gunSPrite);
+	const enemy = new Sprite(enemySprite);
 	const titleScreen = new Sprite(titlescreenSprite);
 	const playButton = new Sprite(playSprite);
 
+	enemy.width = 150;
+	enemy.height = 100;
+	
 	gameContainer.addChild(player);
 	gameContainer.addChild(gun);
 	gameContainer.addChild(bullet);
+	gameContainer.addChild(enemy);
 
 	player.position.set(20, app.screen.height - player.height - 20);
 	bullet.anchor.set(0.5);
@@ -59,7 +64,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	}
 
 	let enemies = [];
-	let spawnEnemyInterval = null;
+	const spawnEnemyInterval = null;
 
 	let enemySpeed = 3;
 	const enemySpeeds = [3, 8, 15];
@@ -69,37 +74,30 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 	// Spawn enemy
 	function spawnEnemy() {
-		if (!gameStarted) return;
-
-		const newEnemy = new Sprite(enemySprite);
-		newEnemy.width = 150;
-		newEnemy.height = 100;
-
 		const randomLane = Math.floor(Math.random() * laneCount);
 		const laneY = lanes[randomLane];
 
 		const randomSpeed = Math.floor(Math.random() * enemySpeeds.length);
 		enemySpeed = enemySpeeds[randomSpeed];
 
-		newEnemy.speed = enemySpeeds[randomSpeed];
-		newEnemy.isFlying = true;
-
 		const minStopX = 150;
-    	const maxStopX = app.screen.width - newEnemy.width * 1.5;
+    	const maxStopX = app.screen.width - enemy.width * 1.5;
 
-		newEnemy.stopX =
-			Math.random() * (maxStopX - minStopX) + minStopX;
+		enemyStopX =
+        Math.random() * (maxStopX - minStopX) + minStopX;
 
-		newEnemy.position.set(
-			app.screen.width + newEnemy.width,
+		enemy.position.set(
+			app.screen.width + enemy.width,
 			laneY
 		);
-		
-		gameContainer.addChild(newEnemy);
-		enemies.push(newEnemy);
+		enemy.visible = true;
+		isEnemyFlying = true;
 	}
 
-	// Gun and tweens
+
+	// Spawn enemy pertama
+	spawnEnemy();
+
 	const aimingSpeed = 2000;
 	const bulletSpeed = 20;
 	let gunCopy = gun;
@@ -116,6 +114,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 
 	/*----[[ Shoot Bullet ]]----*/
+
 	function shootBullet() {
 
 		// Jika masih ada bullet yang terbang,
@@ -174,54 +173,83 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		lowerGunTween.update();
 		gun.angle = gunCopy.angle;
 
-		// Update and move all active enemy clones
-		for (let i = enemies.length - 1; i >= 0; i--) {
-			const currentEnemy = enemies[i];
+		if (isEnemyFlying) {
 
-			if (currentEnemy.isFlying) {
-				currentEnemy.x -= currentEnemy.speed * time.deltaTime;
+			// Gerakkan enemy dari kanan ke kiri
+			enemy.x -= enemySpeed * time.deltaTime;
 
-				if (currentEnemy.x <= currentEnemy.stopX) {
-					currentEnemy.x = currentEnemy.stopX;
-					currentEnemy.isFlying = false;
-				}
+			// Jika enemy sudah keluar dari layar
+			if (enemy.x <= enemyStopX) {
+				enemy.x = enemyStopX;
+				isEnemyFlying = false;
+			}
+		}
+		// Update bullet position
+		if (isBulletFlying) {
+
+			// Gerakkan bullet
+			bullet.x +=
+				bulletVelocity.x * time.deltaTime;
+
+			bullet.y +=
+				bulletVelocity.y * time.deltaTime;
+
+
+			/*---- Bullet keluar layar ----*/
+
+			if (
+				bullet.x < 0 ||
+				bullet.x > app.screen.width ||
+				bullet.y < 0 ||
+				bullet.y > app.screen.height
+			) {
+
+				// Sembunyikan bullet
+				bullet.visible = false;
+
+				// Bullet tidak terbang
+				isBulletFlying = false;
 			}
 
-			// Handle Bullet collision loops per individual enemy clone
-			if (isBulletFlying && currentEnemy.visible) {
-				const bulletBounds = bullet.getBounds();
-				const enemyBounds = currentEnemy.getBounds();
 
+			/*---- Bullet Collision Enemy ----*/
+
+			if (isBulletFlying && enemy.visible) {
+
+				const bulletBounds =
+					bullet.getBounds();
+
+				const enemyBounds =
+					enemy.getBounds();
+
+
+				// Cek apakah bullet menyentuh enemy
 				if (
 					bulletBounds.x < enemyBounds.x + enemyBounds.width &&
 					bulletBounds.x + bulletBounds.width > enemyBounds.x &&
 					bulletBounds.y < enemyBounds.y + enemyBounds.height &&
 					bulletBounds.y + bulletBounds.height > enemyBounds.y
 				) {
-					// Hide and reset bullet
+
+					/*---- Enemy Eliminated ----*/
+
+					// Sembunyikan bullet
 					bullet.visible = false;
+
+					// Bullet sudah tidak terbang
 					isBulletFlying = false;
 
-					// Remove killed enemy clone from visual container
-					gameContainer.removeChild(currentEnemy);
-					
-					// Remove clone completely out of our tracking array
-					enemies.splice(i, 1);
-					
-					// Skip rest of calculations for this dead enemy loop iteration
-					continue; 
+
+					// Hilangkan enemy
+					enemy.visible = false;
+
+					// Enemy sudah tidak bergerak
+					isEnemyFlying = false;
+
+
+					// Spawn enemy berikutnya
+					spawnEnemy();
 				}
-			}
-		}
-
-		// Move flying bullet
-		if (isBulletFlying) {
-			bullet.x += bulletVelocity.x * time.deltaTime;
-			bullet.y += bulletVelocity.y * time.deltaTime;
-
-			if (bullet.x < 0 || bullet.x > app.screen.width || bullet.y < 0 || bullet.y > app.screen.height) {
-				bullet.visible = false;
-				isBulletFlying = false;
 			}
 		}
 	});
@@ -236,7 +264,6 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 		// Start your gameplay elements here
 		spawnEnemy();
-		spawnEnemyInterval = setInterval(spawnEnemy, 2000);
 		aimingTween.start();
 	});
 
