@@ -21,19 +21,24 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const particleSprite = await Assets.load('./assets/textures/particle.png');
 
 	const player = new Sprite(playerSprite);
-	const gun = new Sprite(gunSPrite);
 	const bullet = new Sprite(particleSprite);
+	const gun = new Sprite(gunSPrite);
 
 	app.stage.addChild(player);
 	app.stage.addChild(gun);
 	app.stage.addChild(bullet);
 
 	player.position.set(20, app.screen.height - player.height - 20);
+	bullet.anchor.set(0.5);
 	gun.position.set(player.width * 2 / 3 + 20, app.screen.height - player.height / 2 - 20);
 	gun.anchor.set(0.2, 0.5);
 
+	// TODO: Add a bullet firing feature
 	const aimingSpeed = 2000;
-	let gunCopy = { angle: gun.angle };
+	const bulletSpeed = 200;
+	let gunCopy = gun;
+	let bulletVelocity = { x: 0, y: 0 };
+	let isBulletFlying = false;
 	let aimingTween = new Tween(gunCopy)
 		.to({ angle: -60 }, aimingSpeed)
 		.easing(yoyo(Easing.Linear.InOut))
@@ -45,9 +50,13 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 	/*----[[ Updates ]]----*/
 	app.ticker.add((time) => {
+
+		// Update aim
 		aimingTween.update();
 		lowerGunTween.update();
 		gun.angle = gunCopy.angle;
+
+		// Update bullet position
 	});
 
 
@@ -64,6 +73,11 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		aimingTween.stop();
 		lowerGunTween.delay(100);
 		lowerGunTween.startFromCurrentValues();
+
+//		.onComplete(() => {
+//			bullet.visible.set(true);
+//			bullet.position.set(gun.x, gun.y);
+//			bulletVelocity.x = Math.cos(gunCopy.angle * (Math.PI / 180)) * bulletSpeed;
 	});
 	app.stage.on('pointerupoutside', () => {
 		aimingTween.stop();
@@ -72,7 +86,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	});
 })();
 
-// Helper functions, TODO: Isolate this
+// Helper functions
 function yoyo(easingFunction) {
 	return (time) => {
 		if (time < 0.5) {
