@@ -62,7 +62,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	// Status enemy
 	let isEnemyFlying = false;
 
-
+	let enemyStopX;
 	// Spawn enemy
 	function spawnEnemy() {
 
@@ -75,7 +75,13 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		const randomSpeed = Math.floor(Math.random() * enemySpeeds.length);
 		enemySpeed = enemySpeeds[randomSpeed];
 
-		// Spawn dari sebelah kanan layar
+		const minStopX = 150;
+    	const maxStopX = app.screen.width - enemy.width * 1.5;
+
+		enemyStopX =
+        Math.random() * (maxStopX - minStopX) + minStopX;
+
+    	// Spawn dari kanan
 		enemy.position.set(
 			app.screen.width + enemy.width,
 			laneY
@@ -158,10 +164,9 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 			enemy.x -= enemySpeed * time.deltaTime;
 
 			// Jika enemy sudah keluar dari layar
-			if (enemy.x < -enemy.width) {
-
-				// Spawn enemy berikutnya
-				spawnEnemy();
+			if (enemy.x <= enemyStopX) {
+				enemy.x = enemyStopX;
+				isEnemyFlying = false;
 			}
 		}
 		// Update bullet position
