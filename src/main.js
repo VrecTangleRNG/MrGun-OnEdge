@@ -1,5 +1,5 @@
 // Import main dependencies
-import { Application, Assets, Sprite, Container } from 'pixi.js';
+import { Application, Assets, Sprite, Container, Text } from 'pixi.js';
 import { Tween, Easing } from '@tweenjs/tween.js';
 
 
@@ -40,6 +40,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const bullet = new Sprite(particleSprite);
 	const gun = new Sprite(gunSPrite);
 	const enemy = new Sprite(enemySprite);
+	const enemyBullet = new Sprite(particleSprite);
 	const titleScreen = new Sprite(titlescreenSprite);
 	const playButton = new Sprite(playSprite);
 	
@@ -50,18 +51,145 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	bullet.height = 60;
 	enemy.width = 150;
 	enemy.height = 100;
+	enemyBullet.width = 40;
+	enemyBullet.height = 40;
+	enemyBullet.anchor.set(0.5);
+	enemyBullet.visible = false;
 
 	gameContainer.addChild(background);
 	gameContainer.addChild(player);
 	gameContainer.addChild(gun);
 	gameContainer.addChild(bullet);
 	gameContainer.addChild(enemy);
+	gameContainer.addChild(enemyBullet);
 
 	player.position.set(20, app.screen.height - player.height - 20);
 	bullet.anchor.set(0.5);
 	gun.position.set(player.width * 2 / 3 + 20, app.screen.height - player.height / 2 - 20);
 	gun.anchor.set(0.2, 0.5);
 
+	// Power-Up
+	const powerUps = [
+		'Double Damage',
+		'Rapid Fire',
+		'Shield',
+		'Bigger Bullet',
+		'Slow Enemy'
+	];
+	
+	let isPowerUpChoosing = false;
+
+	const powerUpContainer = new Container();
+	powerUpContainer.visible = false;
+
+	gameContainer.addChild(powerUpContainer);
+
+	function getRandomPowerUps() {
+
+    	const shuffled = [...powerUps]
+        	.sort(() => Math.random() - 0.5);
+
+	    return shuffled.slice(0, 3);
+	}
+
+	function showPowerUpMenu() {
+
+    isPowerUpChoosing = true;
+    gameStarted = false;
+
+    powerUpContainer.removeChildren();
+
+    const title = new Text({
+        text: 'CHOOSE POWER-UP',
+        style: {
+            fontSize: 40,
+            fill: 0xffffff
+        }
+    });
+
+    title.anchor.set(0.5);
+    title.x = app.screen.width / 2;
+    title.y = 150;
+
+    powerUpContainer.addChild(title);
+
+    const choices = getRandomPowerUps();
+
+    choices.forEach((powerUp, index) => {
+
+        const button = new Text({
+            text: powerUp,
+            style: {
+                fontSize: 28,
+                fill: 0xffffff
+            }
+        });
+
+        button.anchor.set(0.5);
+
+        button.x =
+            app.screen.width / 2 +
+            (index - 1) * 250;
+
+        button.y = app.screen.height / 2;
+
+        button.eventMode = 'static';
+        button.cursor = 'pointer';
+
+        button.on('pointerdown', () => {
+            selectPowerUp(powerUp);
+        });
+
+        powerUpContainer.addChild(button);
+    });
+
+    powerUpContainer.visible = true;
+	}
+
+	function selectPowerUp(powerUp) {
+
+    console.log('Selected Power-Up:', powerUp);
+
+    // Placeholder efek power-up
+    switch (powerUp) {
+
+        case 'Double Damage':
+            console.log('TODO: Double Damage');
+            break;
+
+        case 'Rapid Fire':
+            console.log('TODO: Rapid Fire');
+            break;
+
+        case 'Shield':
+            console.log('TODO: Shield');
+            break;
+
+        case 'Bigger Bullet':
+            console.log('TODO: Bigger Bullet');
+            break;
+
+        case 'Slow Enemy':
+            console.log('TODO: Slow Enemy');
+            break;
+    }
+
+    powerUpContainer.visible = false;
+    isPowerUpChoosing = false;
+
+    gameStarted = true;
+
+    spawnEnemy();
+	}
+	function checkPowerUp() {
+
+    if (score >= nextPowerUpScore) {
+
+        nextPowerUpScore += 100;
+
+        showPowerUpMenu();
+    }
+	}
 /*----[[ Enemy System ]]----*/
 
 	// Jumlah jalur
@@ -77,15 +205,41 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		lanes.push(laneSpacing * (i + 1));
 	}
 
-
+	let isParryMode = false;
 	// Enemy speed
 	let enemySpeed = 3;
 	const enemySpeeds = [3, 8, 15];
+
+	// Score system
+	let score = 0;
+	let nextPowerUpScore = 100;	
+	const scoreText = new Text({
+		text: 'Score: 0',
+		style: {
+			fontSize: 32,
+			fill: 0xffffff
+		}
+	});
+
+	scoreText.x = 20;
+	scoreText.y = 20;
+
+	gameContainer.addChild(scoreText);
 
 	// Status enemy
 	let isEnemyFlying = false;
 
 	let enemyStopX;
+	let enemyShootTimer = 0;
+	let hasEnemyShot = false;
+
+	const enemyShootDelay = 600;
+	const enemyBulletSpeed = 8;
+
+	let enemyBulletVelocity = {
+		x: 0,
+		y: 0
+	};
 	// Spawn enemy
 	function spawnEnemy() {
 
@@ -117,9 +271,35 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		isEnemyFlying = true;
 	}
 
-
 	// Spawn enemy pertama
 	spawnEnemy();
+
+	function shootEnemyBullet() {
+
+    // Posisi awal peluru dari enemy
+    enemyBullet.position.set(
+        enemy.x,
+        enemy.y
+    );
+
+    // Hitung arah dari enemy ke player
+    const dx = player.x - enemy.x;
+    const dy = player.y - enemy.y;
+
+    const distance = Math.sqrt(
+        dx * dx + dy * dy
+    );
+
+    // Normalisasi arah
+    enemyBulletVelocity.x =
+        (dx / distance) * enemyBulletSpeed;
+
+    enemyBulletVelocity.y =
+        (dy / distance) * enemyBulletSpeed;
+
+    enemyBullet.visible = true;
+    hasEnemyShot = true;
+}
 
 	// TODO: Add a bullet firing feature
 	const aimingSpeed = 2000;
@@ -202,6 +382,20 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		spawnEnemy();
 		aimingTween.start();
 	});
+		window.addEventListener('keydown', (event) => {
+
+		if (!gameStarted) return;
+
+		if (event.code === 'Space') {
+
+			isParryMode = !isParryMode;
+
+			console.log(
+				'Parry Mode:',
+				isParryMode ? 'ON' : 'OFF'
+			);
+		}
+	});
 	
 	/*----[[ Updates ]]----*/
 	app.ticker.add((time) => {
@@ -216,15 +410,48 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 		if (isEnemyFlying) {
 
-			// Gerakkan enemy dari kanan ke kiri
-			enemy.x -= enemySpeed * time.deltaTime;
+    enemy.x -= enemySpeed * time.deltaTime;
 
-			// Jika enemy sudah keluar dari layar
-			if (enemy.x <= enemyStopX) {
-				enemy.x = enemyStopX;
-				isEnemyFlying = false;
-			}
+    if (enemy.x <= enemyStopX) {
+
+        enemy.x = enemyStopX;
+
+        isEnemyFlying = false;
+
+        // Reset timer tembakan
+        enemyShootTimer = 0;
+        hasEnemyShot = false;
+    }
+
+	} else if (enemy.visible && !hasEnemyShot) {
+
+		// Hitung waktu enemy sudah berhenti
+		enemyShootTimer += time.deltaMS;
+
+		// Setelah 0,6 detik, enemy menembak
+		if (enemyShootTimer >= enemyShootDelay) {
+			shootEnemyBullet();
 		}
+	}
+
+	if (enemyBullet.visible) {
+
+    enemyBullet.x +=
+        enemyBulletVelocity.x * time.deltaTime;
+
+    enemyBullet.y +=
+        enemyBulletVelocity.y * time.deltaTime;
+
+    // Kalau keluar layar
+    if (
+        enemyBullet.x < 0 ||
+        enemyBullet.x > app.screen.width ||
+        enemyBullet.y < 0 ||
+        enemyBullet.y > app.screen.height
+    ) {
+        enemyBullet.visible = false;
+    }
+}
 		// Update bullet position
 		if (isBulletFlying) {
 
@@ -287,12 +514,63 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 					// Enemy sudah tidak bergerak
 					isEnemyFlying = false;
 
+					// Tambah score
+					score += 10;
+					scoreText.text = `Score: ${score}`;
+
+					// Cek power-up
+					checkPowerUp();
 
 					// Spawn enemy berikutnya
-					spawnEnemy();
+					if (gameStarted) {
+						spawnEnemy();
+					}
+
 				}
 			}
 		}
+
+		if (enemyBullet.visible) {
+
+    const enemyBulletBounds =
+        enemyBullet.getBounds();
+
+    const playerBounds =
+        player.getBounds();
+
+		if (
+			enemyBulletBounds.x <
+				playerBounds.x + playerBounds.width &&
+			enemyBulletBounds.x +
+				enemyBulletBounds.width >
+				playerBounds.x &&
+			enemyBulletBounds.y <
+				playerBounds.y + playerBounds.height &&
+			enemyBulletBounds.y +
+				enemyBulletBounds.height >
+				playerBounds.y
+		) {
+
+			if (isParryMode) {
+
+				// Peluru berhasil ditepis
+				enemyBullet.visible = false;
+
+				console.log('ATTACK PARRIED!');
+
+			} else {
+
+				// Player terkena serangan
+				enemyBullet.visible = false;
+
+				console.log('PLAYER HIT!');
+
+				// Untuk sementara
+				// game dihentikan
+				gameStarted = false;
+			}
+		}
+	}	
 	});
 
 
