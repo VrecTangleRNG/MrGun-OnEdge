@@ -10,8 +10,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const app = new Application();
 	await app.init({ 
 	    resizeTo: window, 
-	    backgroundColor: 0x1099bb,  
-	});
+	    });
 	document.body.appendChild(app.canvas);
 	
 	const gameContainer = new Container();
@@ -28,6 +27,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 
 	// Init game objects
+	const backgroundTexture = await Assets.load('./assets/textures/factory.jpg');
 	const playerSprite = await Assets.load('./assets/textures/char0.png');
 	const gunSPrite = await Assets.load('./assets/textures/glock.png');
 	const particleSprite = await Assets.load('./assets/textures/candy.jpg');
@@ -35,20 +35,23 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const titlescreenSprite = await Assets.load('./assets/textures/titlescreen.png');
 	const playSprite = await Assets.load('./assets/textures/playbutton.png');
 
+	const background = new Sprite(backgroundTexture);
 	const player = new Sprite(playerSprite);
 	const bullet = new Sprite(particleSprite);
 	const gun = new Sprite(gunSPrite);
 	const enemy = new Sprite(enemySprite);
+	const titleScreen = new Sprite(titlescreenSprite);
+	const playButton = new Sprite(playSprite);
+	
+	background.width = app.screen.width;
+	background.height = app.screen.height;
 
 	bullet.width = 60;
 	bullet.height = 60;
-	
-	const titleScreen = new Sprite(titlescreenSprite);
-	const playButton = new Sprite(playSprite);
-
 	enemy.width = 150;
 	enemy.height = 100;
-	
+
+	gameContainer.addChild(background);
 	gameContainer.addChild(player);
 	gameContainer.addChild(gun);
 	gameContainer.addChild(bullet);
