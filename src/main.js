@@ -1,5 +1,5 @@
 // Import main dependencies
-import { Application, Assets, Sprite } from 'pixi.js';
+import { Application, Assets, Sprite, Container } from 'pixi.js';
 import { Tween, Easing } from '@tweenjs/tween.js';
 
 
@@ -13,6 +13,18 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	    backgroundColor: 0x1099bb,  
 	});
 	document.body.appendChild(app.canvas);
+	
+	const gameContainer = new Container();
+	const menuContainer = new Container();
+
+	// Start with game hidden, menu visible
+	gameContainer.visible = false;
+	menuContainer.visible = true;
+
+	app.stage.addChild(gameContainer);
+	app.stage.addChild(menuContainer);
+
+	let gameStarted = false;
 
 
 	// Init game objects
@@ -20,20 +32,27 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const gunSPrite = await Assets.load('./assets/textures/glock.png');
 	const particleSprite = await Assets.load('./assets/textures/candy.jpg');
 	const enemySprite = await Assets.load('./assets/textures/enemy.png');
+	const titlescreenSprite = await Assets.load('./assets/textures/titlescreen.png');
+	const playSprite = await Assets.load('./assets/textures/playbutton.png');
 
 	const player = new Sprite(playerSprite);
 	const bullet = new Sprite(particleSprite);
 	const gun = new Sprite(gunSPrite);
 	const enemy = new Sprite(enemySprite);
+
 	bullet.width = 60;
 	bullet.height = 60;
+	
+	const titleScreen = new Sprite(titlescreenSprite);
+	const playButton = new Sprite(playSprite);
+
 	enemy.width = 150;
 	enemy.height = 100;
 	
-	app.stage.addChild(player);
-	app.stage.addChild(gun);
-	app.stage.addChild(bullet);
-	app.stage.addChild(enemy);
+	gameContainer.addChild(player);
+	gameContainer.addChild(gun);
+	gameContainer.addChild(bullet);
+	gameContainer.addChild(enemy);
 
 	player.position.set(20, app.screen.height - player.height - 20);
 	bullet.anchor.set(0.5);
@@ -151,8 +170,41 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		// Bullet sedang terbang
 		isBulletFlying = true;
 	}
+
+	// Setup Title Background (Stretch to cover canvas or place centrally)
+	titleScreen.width = app.screen.width;
+	titleScreen.height = app.screen.height;
+
+	// Setup Play Button
+	playButton.anchor.set(0.5);
+	playButton.x = app.screen.width / 2;
+	playButton.y = app.screen.height / 2 + 100; // Positioned below center text
+	
+	// Make Play Button Interactive
+	playButton.eventMode = 'static';
+	playButton.cursor = 'pointer';
+
+	// Add menu items to the MENU container
+	menuContainer.addChild(titleScreen);
+	menuContainer.addChild(playButton);
+
+	/*----[[ Menu Signals ]]----*/
+	// Handle Clicking the Play Button to start the game
+	playButton.on('pointerdown', () => {
+		menuContainer.visible = false;
+		gameContainer.visible = true;
+		gameStarted = true;
+		
+		// Start your gameplay elements here
+		spawnEnemy();
+		aimingTween.start();
+	});
+	
 	/*----[[ Updates ]]----*/
 	app.ticker.add((time) => {
+
+		// Only calculate physics if game is active
+		if (!gameStarted) return;
 
 		// Update aim
 		aimingTween.update();
@@ -243,25 +295,24 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 	/*----[[ Signals ]]----*/
 	// Make canvas able to receive touch input
-	app.stage.eventMode = 'static';
-	app.stage.hitArea = app.screen;
+	gameContainer.eventMode = 'static';
+	gameContainer.hitArea = app.screen;
 
-	app.stage.on('pointerdown', () => {
+	gameContainer.on('pointerdown', () => {
+		if (!gameStarted) return;
 		aimingTween.start();
 		lowerGunTween.stop();
 	});
-	app.stage.on('pointerup', () => {
+	gameContainer.on('pointerup', () => {
+		if (!gameStarted) return;
 		aimingTween.stop();
 		shootBullet();
 		lowerGunTween.delay(100);
 		lowerGunTween.startFromCurrentValues();
 
-//		.onComplete(() => {
-//			bullet.visible.set(true);
-//			bullet.position.set(gun.x, gun.y);
-//			bulletVelocity.x = Math.cos(gunCopy.angle * (Math.PI / 180)) * bulletSpeed;
 	});
-	app.stage.on('pointerupoutside', () => {
+	gameContainer.on('pointerupoutside', () => {
+		if (!gameStarted) return;
 		aimingTween.stop();
 		shootBullet();
 		lowerGunTween.delay(100);
