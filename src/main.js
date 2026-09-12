@@ -35,17 +35,14 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const playSprite = await Assets.load('./assets/textures/playbutton.png');
 
 	const player = new Sprite(playerSprite);
-	const bullet = new Sprite(particleSprite);
 	const gun = new Sprite(gunSPrite);
 	const titleScreen = new Sprite(titlescreenSprite);
 	const playButton = new Sprite(playSprite);
 
 	gameContainer.addChild(player);
 	gameContainer.addChild(gun);
-	gameContainer.addChild(bullet);
 
 	player.position.set(20, app.screen.height - player.height - 20);
-	bullet.anchor.set(0.5);
 	gun.position.set(player.width * 2 / 3 + 20, app.screen.height - player.height / 2 - 20);
 	gun.anchor.set(0.2, 0.5);
 
@@ -63,9 +60,6 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 	let enemySpeed = 3;
 	const enemySpeeds = [3, 8, 15];
-
-	let isEnemyFlying = false;
-	let enemyStopX;
 
 	// Spawn enemy
 	function spawnEnemy() {
@@ -101,11 +95,8 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 	// Gun and tweens
 	const aimingSpeed = 2000;
-	const bulletSpeed = 20;
 	let gunCopy = gun;
-	let bulletVelocity = { x: 0, y: 0 };
 	let isBulletFlying = false;
-	bullet.visible = false;
 	let aimingTween = new Tween(gunCopy)
 		.to({ angle: -60 }, aimingSpeed)
 		.easing(yoyo(Easing.Linear.InOut))
@@ -115,35 +106,29 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		.easing(Easing.Quadratic.Out);
 
 
+	/*----[[ Bullet System ]]----*/
+	const bulletSpeed = 20;
+	let bullets = []; // Array to hold active bullet clones
+
 	/*----[[ Shoot Bullet ]]----*/
 	function shootBullet() {
+		// Create a brand new bullet instance
+		const newBullet = new Sprite(particleSprite);
+		newBullet.anchor.set(0.5);
+		newBullet.position.set(gun.x, gun.y);
 
-		// Jika masih ada bullet yang terbang,
-		// jangan menembak lagi
-		if (isBulletFlying) {
-			return;
-		}
+		// Calculate individual velocity vector based on current gun angle
+		const angle = gunCopy.angle * (Math.PI / 180);
+		newBullet.velocity = {
+			x: Math.cos(angle) * bulletSpeed,
+			y: Math.sin(angle) * bulletSpeed
+		};
 
-		bullet.visible = true;
-		bullet.position.set(
-			gun.x,
-			gun.y
-		);
-
-		// Ambil angle pistol
-		const angle =
-			gunCopy.angle * (Math.PI / 180);
-
-		// Hitung kecepatan berdasarkan arah pistol
-		bulletVelocity.x =
-			Math.cos(angle) * bulletSpeed;
-
-		bulletVelocity.y =
-			Math.sin(angle) * bulletSpeed;
-
-		// Bullet sedang terbang
-		isBulletFlying = true;
+		// Display it and add it to tracking structures
+		gameContainer.addChild(newBullet);
+		bullets.push(newBullet);
 	}
+
 
 	// Setup Title Background (Stretch to cover canvas or place centrally)
 	titleScreen.width = app.screen.width;
@@ -186,42 +171,52 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 					currentEnemy.isFlying = false;
 				}
 			}
+		}
 
-			// Handle Bullet collision loops per individual enemy clone
-			if (isBulletFlying && currentEnemy.visible) {
-				const bulletBounds = bullet.getBounds();
+		// Update, move, and bound-check all active bullet clones
+		for (let b = bullets.length - 1; b >= 0; b--) {
+			const currentBullet = bullets[b];
+
+			currentBullet.x += currentBullet.velocity.x * time.deltaTime;
+			currentBullet.y += currentBullet.velocity.y * time.deltaTime;
+
+			/*---- Check if bullet left the screen bounds ----*/
+			if (
+				currentBullet.x < 0 ||
+				currentBullet.x > app.screen.width ||
+				currentBullet.y < 0 ||
+				currentBullet.y > app.screen.height
+			) {
+				gameContainer.removeChild(currentBullet);
+				bullets.splice(b, 1);
+				continue;
+			}
+
+			/*---- Nested Bullet vs Enemy Collision Check ----*/
+			for (let e = enemies.length - 1; e >= 0; e--) {
+				const currentEnemy = enemies[e];
+
+				const bulletBounds = currentBullet.getBounds();
 				const enemyBounds = currentEnemy.getBounds();
 
+				// AABB Collision Detection
 				if (
 					bulletBounds.x < enemyBounds.x + enemyBounds.width &&
 					bulletBounds.x + bulletBounds.width > enemyBounds.x &&
 					bulletBounds.y < enemyBounds.y + enemyBounds.height &&
 					bulletBounds.y + bulletBounds.height > enemyBounds.y
 				) {
-					// Hide and reset bullet
-					bullet.visible = false;
-					isBulletFlying = false;
+					/*---- Collision Occurred! Cleanup both objects ----*/
+					
+					// Remove bullet clone
+					gameContainer.removeChild(currentBullet);
+					bullets.splice(b, 1);
 
-					// Remove killed enemy clone from visual container
+					// Remove enemy clone
 					gameContainer.removeChild(currentEnemy);
-					
-					// Remove clone completely out of our tracking array
-					enemies.splice(i, 1);
-					
-					// Skip rest of calculations for this dead enemy loop iteration
-					continue; 
+					enemies.splice(e, 1);
+					break; 
 				}
-			}
-		}
-
-		// Move flying bullet
-		if (isBulletFlying) {
-			bullet.x += bulletVelocity.x * time.deltaTime;
-			bullet.y += bulletVelocity.y * time.deltaTime;
-
-			if (bullet.x < 0 || bullet.x > app.screen.width || bullet.y < 0 || bullet.y > app.screen.height) {
-				bullet.visible = false;
-				isBulletFlying = false;
 			}
 		}
 	});
