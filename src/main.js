@@ -10,7 +10,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const app = new Application();
 	await app.init({ 
 	    resizeTo: window, 
-	    backgroundColor: 0x1099bb 
+	    backgroundColor: 0x1099bb,  
 	});
 	document.body.appendChild(app.canvas);
 
@@ -18,14 +18,15 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	// Init game objects
 	const playerSprite = await Assets.load('./assets/textures/char0.png');
 	const gunSPrite = await Assets.load('./assets/textures/glock.png');
-	const particleSprite = await Assets.load('./assets/textures/particle.png');
+	const particleSprite = await Assets.load('./assets/textures/candy.jpg');
 	const enemySprite = await Assets.load('./assets/textures/enemy.png');
 
 	const player = new Sprite(playerSprite);
 	const bullet = new Sprite(particleSprite);
 	const gun = new Sprite(gunSPrite);
 	const enemy = new Sprite(enemySprite);
-
+	bullet.width = 60;
+	bullet.height = 60;
 	enemy.width = 150;
 	enemy.height = 100;
 	
@@ -100,13 +101,13 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 
 	// TODO: Add a bullet firing feature
 	const aimingSpeed = 2000;
-	const bulletSpeed = 200;
+	const bulletSpeed = 80;
 	let gunCopy = gun;
 	let bulletVelocity = { x: 0, y: 0 };
 	let isBulletFlying = false;
 	bullet.visible = false;
 	let aimingTween = new Tween(gunCopy)
-		.to({ angle: -60 }, aimingSpeed)
+		.to({ angle: -70 }, aimingSpeed)
 		.easing(yoyo(Easing.Linear.InOut))
 		.repeat(Infinity);
 	let lowerGunTween = new Tween(gunCopy)
