@@ -46,57 +46,12 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	gun.position.set(player.width * 2 / 3 + 20, app.screen.height - player.height / 2 - 20);
 	gun.anchor.set(0.2, 0.5);
 
-
-	/*----[[ Enemy System ]]----*/
-	const laneCount = 5;
-	const laneSpacing = 120;
-	const lanes = [];
-	for (let i = 0; i < laneCount; i++) {
-		lanes.push(laneSpacing * (i + 1));
-	}
-
 	let enemies = [];
 	let spawnEnemyInterval = null;
-
-	let enemySpeed = 3;
-	const enemySpeeds = [3, 8, 15];
-
-	// Spawn enemy
-	function spawnEnemy() {
-		if (!gameStarted) return;
-
-		const newEnemy = new Sprite(enemySprite);
-		newEnemy.width = 150;
-		newEnemy.height = 100;
-
-		const randomLane = Math.floor(Math.random() * laneCount);
-		const laneY = lanes[randomLane];
-
-		const randomSpeed = Math.floor(Math.random() * enemySpeeds.length);
-		enemySpeed = enemySpeeds[randomSpeed];
-
-		newEnemy.speed = enemySpeeds[randomSpeed];
-		newEnemy.isFlying = true;
-
-		const minStopX = 150;
-    	const maxStopX = app.screen.width - newEnemy.width * 1.5;
-
-		newEnemy.stopX =
-			Math.random() * (maxStopX - minStopX) + minStopX;
-
-		newEnemy.position.set(
-			app.screen.width + newEnemy.width,
-			laneY
-		);
-		
-		gameContainer.addChild(newEnemy);
-		enemies.push(newEnemy);
-	}
 
 	// Gun and tweens
 	const aimingSpeed = 2000;
 	let gunCopy = gun;
-	let isBulletFlying = false;
 	let aimingTween = new Tween(gunCopy)
 		.to({ angle: -60 }, aimingSpeed)
 		.easing(yoyo(Easing.Linear.InOut))
@@ -105,30 +60,8 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		.to({ angle: 0 }, 100)
 		.easing(Easing.Quadratic.Out);
 
-
-	/*----[[ Bullet System ]]----*/
 	const bulletSpeed = 20;
-	let bullets = []; // Array to hold active bullet clones
-
-	/*----[[ Shoot Bullet ]]----*/
-	function shootBullet() {
-		// Create a brand new bullet instance
-		const newBullet = new Sprite(particleSprite);
-		newBullet.anchor.set(0.5);
-		newBullet.position.set(gun.x, gun.y);
-
-		// Calculate individual velocity vector based on current gun angle
-		const angle = gunCopy.angle * (Math.PI / 180);
-		newBullet.velocity = {
-			x: Math.cos(angle) * bulletSpeed,
-			y: Math.sin(angle) * bulletSpeed
-		};
-
-		// Display it and add it to tracking structures
-		gameContainer.addChild(newBullet);
-		bullets.push(newBullet);
-	}
-
+	let bullets = [];
 
 	// Setup Title Background (Stretch to cover canvas or place centrally)
 	titleScreen.width = app.screen.width;
@@ -137,7 +70,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	// Setup Play Button
 	playButton.anchor.set(0.5);
 	playButton.x = app.screen.width / 2;
-	playButton.y = app.screen.height / 2 + 100; // Positioned below center text
+	playButton.y = app.screen.height / 2 + 100;
 	
 	// Make Play Button Interactive
 	playButton.eventMode = 'static';
@@ -180,7 +113,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 			currentBullet.x += currentBullet.velocity.x * time.deltaTime;
 			currentBullet.y += currentBullet.velocity.y * time.deltaTime;
 
-			/*---- Check if bullet left the screen bounds ----*/
+			// Check if bullet left the screen bounds
 			if (
 				currentBullet.x < 0 ||
 				currentBullet.x > app.screen.width ||
@@ -192,7 +125,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 				continue;
 			}
 
-			/*---- Nested Bullet vs Enemy Collision Check ----*/
+			// Nested Bullet vs Enemy Collision Check
 			for (let e = enemies.length - 1; e >= 0; e--) {
 				const currentEnemy = enemies[e];
 
@@ -206,8 +139,7 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 					bulletBounds.y < enemyBounds.y + enemyBounds.height &&
 					bulletBounds.y + bulletBounds.height > enemyBounds.y
 				) {
-					/*---- Collision Occurred! Cleanup both objects ----*/
-					
+
 					// Remove bullet clone
 					gameContainer.removeChild(currentBullet);
 					bullets.splice(b, 1);
@@ -261,16 +193,76 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 		lowerGunTween.delay(100);
 		lowerGunTween.startFromCurrentValues();
 	});
+
+
+	// Helper functions
+	function yoyo(easingFunction) {
+		return (time) => {
+			if (time < 0.5) {
+				return easingFunction(time * 2);
+			}
+			else {
+				return easingFunction((1 - time) * 2);
+			}
+		};
+	}
+
+	function spawnEnemy() {
+		if (!gameStarted) return;
+
+		const newEnemy = new Sprite(enemySprite);
+		newEnemy.width = 150;
+		newEnemy.height = 100;
+
+		const laneCount = 5;
+		const laneSpacing = 120;
+		const lanes = [];
+		for (let i = 0; i < laneCount; i++) {
+			lanes.push(laneSpacing * (i + 1));
+		}
+		const randomLane = Math.floor(Math.random() * laneCount);
+		const laneY = lanes[randomLane];
+
+		let enemySpeed = 3;
+		const enemySpeeds = [3, 7, 14];
+		const randomSpeed = Math.floor(Math.random() * enemySpeeds.length);
+		enemySpeed = enemySpeeds[randomSpeed];
+
+		newEnemy.speed = enemySpeeds[randomSpeed];
+		newEnemy.isFlying = true;
+
+		const minStopX = 150;
+		const maxStopX = app.screen.width - newEnemy.width * 1.5;
+
+		newEnemy.stopX =
+			Math.random() * (maxStopX - minStopX) + minStopX;
+
+		newEnemy.position.set(
+			app.screen.width + newEnemy.width,
+			laneY
+		);
+			
+		gameContainer.addChild(newEnemy);
+		enemies.push(newEnemy);
+	}
+
+	function shootBullet() {
+		// Create a brand new bullet instance
+		const newBullet = new Sprite(particleSprite);
+		newBullet.anchor.set(0.5);
+		newBullet.position.set(gun.x, gun.y);
+
+		// Calculate individual velocity vector based on current gun angle
+		const angle = gunCopy.angle * (Math.PI / 180);
+		newBullet.velocity = {
+			x: Math.cos(angle) * bulletSpeed,
+			y: Math.sin(angle) * bulletSpeed
+		};
+
+		// Display it and add it to tracking structures
+		gameContainer.addChild(newBullet);
+		bullets.push(newBullet);
+	}
 })();
 
-// Helper functions
-function yoyo(easingFunction) {
-	return (time) => {
-		if (time < 0.5) {
-			return easingFunction(time * 2);
-		}
-		else {
-			return easingFunction((1 - time) * 2);
-		}
-	};
-}
+
