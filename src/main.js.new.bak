@@ -1,0 +1,392 @@
+// Import main dependencies
+import { Application, Assets, Sprite, Container, Text, TextStyle } from 'pixi.js';
+import { sound } from '@pixi/sound';
+import { Tween, Easing } from '@tweenjs/tween.js';
+
+(async () => {
+
+	// Init application
+	const app = new Application();
+	await app.init({ 
+	    resizeTo: window, 
+	    backgroundColor: 0x1099bb 
+	});
+	document.body.appendChild(app.canvas);
+	
+	const gameContainer = new Container();
+	const menuContainer = new Container();
+	const overContainer = new Container();
+
+	gameContainer.visible = false;
+	gameContainer.eventMode = 'static';
+	gameContainer.hitArea = app.screen;
+	menuContainer.visible = true;
+	overContainer.visible = false;
+
+	app.stage.addChild(gameContainer);
+	app.stage.addChild(menuContainer);
+	app.stage.addChild(overContainer);
+
+
+	// Init game objects
+	const playerSprite = await Assets.load('./assets/textures/char0.png');
+	const gunSPrite = await Assets.load('./assets/textures/glock.png');
+	const particleSprite = await Assets.load('./assets/textures/particle.png');
+	const enemySprite = await Assets.load('./assets/textures/enemy.png');
+	const titlescreenSprite = await Assets.load('./assets/textures/titlescreen.png');
+	const playSprite = await Assets.load('./assets/textures/playbutton.png');
+	const gameOverSprite = await Assets.load('./assets/textures/gameOver.png');
+	const restartSprite = await Assets.load('./assets/textures/restartButton.png');
+	const returnSprite = await Assets.load('./assets/textures/returnButton.png');
+
+	// TODO: Edit lines at bottom of update
+	// Load Fonts
+	//await Assets.load();
+	//const scoreStyle = new TextStyle({
+	//	fontFamily: 'GameFont', // Must match the font family name inside your .ttf file
+	//	fontSize: 48,
+	//	fill: '#ffffff',
+	//	stroke: { color: '#000000', width: 6, join: 'round' }, // Add an outline for readability
+	//	dropShadow: { color: '#000000', blur: 4, distance: 4 }
+	//});
+
+	//scoreText = new Text({ text: 'Score: 0', style: scoreStyle });
+	//scoreText.position.set(30, 30); // Top-left corner
+	//gameContainer.addChild(scoreText);
+
+	const player = new Sprite(playerSprite);
+	const gun = new Sprite(gunSPrite);
+	const titleScreen = new Sprite(titlescreenSprite);
+	const playButton = new Sprite(playSprite);
+	const gameOverScreen = new Sprite(gameOverSprite);
+	const restartButton = new Sprite(restartSprite);
+	const returnButton = new Sprite(returnSprite);
+
+	gameContainer.addChild(player);
+	gameContainer.addChild(gun);
+	menuContainer.addChild(titleScreen);
+	menuContainer.addChild(playButton);
+	overContainer.addChild(gameOverScreen);
+	overContainer.addChild(restartButton);
+	overContainer.addChild(returnButton);
+
+	player.anchor.set(0.5);
+	player.position.set(player.width, app.screen.height - player.height - 20);
+
+	gun.position.set(player.position.x, player.position.y);
+	gun.anchor.set(0.3, 0.7);
+
+	titleScreen.width = app.screen.width;
+	titleScreen.height = app.screen.height;
+
+	playButton.anchor.set(0.5);
+	playButton.x = app.screen.width / 2;
+	playButton.y = app.screen.height / 2 + 100;
+	playButton.eventMode = 'static';
+	playButton.cursor = 'pointer';
+
+	gameOverScreen.anchor.set(0.5);
+	gameOverScreen.x = app.screen.width / 2;
+	gameOverScreen.y = app.screen.height / 3;
+
+	restartButton.anchor.set(0.5);
+	restartButton.x = app.screen.width / 2 - 120;
+	restartButton.y = app.screen.height / 2 + 50;
+	restartButton.eventMode = 'static';
+	restartButton.cursor = 'pointer';
+
+	returnButton.anchor.set(0.5);
+	returnButton.x = app.screen.width / 2 + 120;
+	returnButton.y = app.screen.height / 2 + 50;
+	returnButton.eventMode = 'static';
+	returnButton.cursor = 'pointer';
+
+	const bulletSpeed = 20;
+	const firerate = 500;
+	const enemyFireRateMS = 1500;
+	const enemyBulletSpeed = 8;
+	const aimingSpeed = 2000;
+	let score = 0;
+	let gameStarted = false;
+	let enemies = [];
+	let spawnEnemyInterval = null;
+	let isPlayerDead = false;
+	let bullets = [];
+	let recoil = 0;
+	let enemyBullets = [];
+	let gunCopy = gun;
+	let playerCopy = player;
+	let aimingTween = new Tween(gunCopy)
+		.to({ angle: -60 }, aimingSpeed)
+		.easing(yoyo(Easing.Linear.InOut))
+		.repeat(Infinity);
+	let lowerGunTween = new Tween(gunCopy)
+		.to({ angle: 0 }, 100)
+		.easing(Easing.Quadratic.Out);
+	let gunFall = new Tween(gunCopy.position)
+		.to({ y: app.screen.height + gun.width * 2 }, 1000)
+		.easing(Easing.Quadratic.In);
+	let fallOffTheScreen = new Tween(playerCopy.position)
+		.to({ y: app.screen.height + 2 * player.height }, 1500)
+		.easing(Easing.Quadratic.In);
+	let jumpPlayer = new Tween(playerCopy.position)
+		.to({ y: app.screen.height / 2}, 1000)
+		.easing(Easing.Quadratic.Out)
+		.chain(fallOffTheScreen);
+
+	app.ticker.add((time) => {
+		if (!gameStarted) return;
+		if (isPlayerDead) {
+			jumpPlayer.update();
+			fallOffTheScreen.update();
+			gunFall.update();
+			player.position.y = playerCopy.position.y;
+			player.angle += 12 * time.deltaTime;
+			return;
+		}
+
+		// Update aim
+		aimingTween.update();
+		lowerGunTween.update();
+		gun.angle = gunCopy.angle;
+
+		recoil += time.deltaMS;
+		if (recoil >= firerate) {
+			recoil = firerate;
+		}
+
+		// Update and move all active enemy clones
+		for (let i = enemies.length - 1; i >= 0; i--) {
+			const currentEnemy = enemies[i];
+
+			if (currentEnemy.isFlying) {
+				currentEnemy.x -= currentEnemy.speed * time.deltaTime;
+
+				if (currentEnemy.x <= currentEnemy.stopX) {
+					currentEnemy.x = currentEnemy.stopX;
+					currentEnemy.isFlying = false;
+				}
+			}
+			else {
+				// Accumulate real delta time in milliseconds
+				currentEnemy.shootTimer += time.deltaMS;
+
+				if (currentEnemy.shootTimer >= enemyFireRateMS) {
+					enemyShoot(currentEnemy, player.position.x, player.position.y);
+					currentEnemy.shootTimer = 0;
+				}
+			}
+		}
+
+		// Move and Boundary Check Enemy Projectiles 
+		for (let eb = enemyBullets.length - 1; eb >= 0; eb--) {
+			const activeEnemyBullet = enemyBullets[eb];
+			
+			// Move enemy bullets
+			activeEnemyBullet.x += activeEnemyBullet.velocity.x * time.deltaTime;
+			activeEnemyBullet.y += activeEnemyBullet.velocity.y * time.deltaTime;
+
+			// TODO: Modify limits
+			if (activeEnemyBullet.x < -activeEnemyBullet.width) {
+				gameContainer.removeChild(activeEnemyBullet);
+				enemyBullets.splice(eb, 1);
+				killPlayer();
+			}
+		}
+
+		// Update, move, and bound-check all active bullet clones
+		for (let b = bullets.length - 1; b >= 0; b--) {
+			const currentBullet = bullets[b];
+
+			currentBullet.x += currentBullet.velocity.x * time.deltaTime;
+			currentBullet.y += currentBullet.velocity.y * time.deltaTime;
+
+			// Check if bullet left the screen bounds
+			if (
+				currentBullet.x < 0 ||
+				currentBullet.x > app.screen.width ||
+				currentBullet.y < 0 ||
+				currentBullet.y > app.screen.height
+			) {
+				gameContainer.removeChild(currentBullet);
+				bullets.splice(b, 1);
+				continue;
+			}
+
+			// Nested Bullet vs Enemy Collision Check
+			for (let e = enemies.length - 1; e >= 0; e--) {
+				const currentEnemy = enemies[e];
+
+				const bulletBounds = currentBullet.getBounds();
+				const enemyBounds = currentEnemy.getBounds();
+
+				// AABB Collision Detection
+				if (
+					bulletBounds.x < enemyBounds.x + enemyBounds.width &&
+					bulletBounds.x + bulletBounds.width > enemyBounds.x &&
+					bulletBounds.y < enemyBounds.y + enemyBounds.height &&
+					bulletBounds.y + bulletBounds.height > enemyBounds.y
+				) {
+
+					// Remove bullet clone
+					gameContainer.removeChild(currentBullet);
+					bullets.splice(b, 1);
+
+					// Remove enemy clone
+					gameContainer.removeChild(currentEnemy);
+					enemies.splice(e, 1);
+
+					score += 10;
+					//scoreText.text = `Score: ${score}`;
+					console.log(score);
+					break;
+				}
+			}
+		}
+	});
+
+
+	playButton.on('pointerdown', () => {
+		menuContainer.visible = false;
+		gameContainer.visible = true;
+		gameStarted = true;
+
+		// Start your gameplay elements here
+		spawnEnemy();
+		spawnEnemyInterval = setInterval(spawnEnemy, 2000);
+		aimingTween.start();
+	});
+	gameContainer.on('pointerdown', () => {
+		if (!gameStarted) return;
+		aimingTween.start();
+		lowerGunTween.stop();
+	});
+	gameContainer.on('pointerup', () => {
+		releaseHoldCallback();
+		});
+	gameContainer.on('pointerupoutside', () => {
+		releaseHoldCallback();
+	});
+
+
+	// Helper functions
+	function yoyo(easingFunction) {
+		return (time) => {
+			if (time < 0.5) {
+				return easingFunction(time * 2);
+			}
+			else {
+				return easingFunction((1 - time) * 2);
+			}
+		};
+	}
+
+	function releaseHoldCallback() {
+		if (!gameStarted) return;
+		aimingTween.stop();
+		shootBullet();
+		lowerGunTween.delay(100);
+		lowerGunTween.startFromCurrentValues();
+	}
+
+	function spawnEnemy() {
+		if (!gameStarted) return;
+
+		const newEnemy = new Sprite(enemySprite);
+		newEnemy.width = 150;
+		newEnemy.height = 100;
+
+		const laneCount = 5;
+		const laneSpacing = 120;
+		const lanes = [];
+		for (let i = 0; i < laneCount; i++) {
+			lanes.push(laneSpacing * (i + 1));
+		}
+		const randomLane = Math.floor(Math.random() * laneCount);
+		const laneY = lanes[randomLane];
+
+		let enemySpeed = 3;
+		const enemySpeeds = [3, 7, 14];
+		const randomSpeed = Math.floor(Math.random() * enemySpeeds.length);
+		enemySpeed = enemySpeeds[randomSpeed];
+
+		newEnemy.speed = enemySpeeds[randomSpeed];
+		newEnemy.isFlying = true;
+
+		newEnemy.shootTimer = 0;
+
+		const minStopX = app.screen.width * 0.2;
+		const maxStopX = app.screen.width * 0.8;
+
+		newEnemy.stopX =
+			Math.random() * (maxStopX - minStopX) + minStopX;
+
+		newEnemy.position.set(
+			app.screen.width + newEnemy.width,
+			laneY
+		);
+
+		gameContainer.addChild(newEnemy);
+		enemies.push(newEnemy);
+	}
+
+	function shootBullet() {
+		if (recoil < firerate) return;
+		const newBullet = new Sprite(particleSprite);
+		newBullet.anchor.set(0.5);
+		newBullet.position.set(gun.x, gun.y);
+
+		const angle = gunCopy.angle * (Math.PI / 180);
+		newBullet.velocity = {
+			x: Math.cos(angle) * bulletSpeed,
+			y: Math.sin(angle) * bulletSpeed
+		};
+
+		gameContainer.addChild(newBullet);
+		bullets.push(newBullet);
+		recoil = 0;
+	}
+
+	function enemyShoot(shootingEnemy, targetX, targetY) {
+		const enemyParticle = new Sprite(particleSprite);
+		enemyParticle.anchor.set(0.5);
+		
+		// Spawn bullet centered at the current enemy's position
+		enemyParticle.position.set(
+			shootingEnemy.x + shootingEnemy.width / 4, 
+			shootingEnemy.y + shootingEnemy.height / 2
+		);
+		
+		// Tint it red so player can easily distinguish it from friendly fire
+		enemyParticle.tint = 0xff3333;
+
+		// Get angle in radian
+		const diffX = targetX - enemyParticle.x;
+		const diffY = targetY - enemyParticle.y;
+		const angle = Math.atan2(diffY, diffX);
+
+		enemyParticle.velocity = {
+			x: Math.cos(angle) * enemyBulletSpeed,
+			y: Math.sin(angle) * enemyBulletSpeed
+		};
+
+		gameContainer.addChild(enemyParticle);
+		enemyBullets.push(enemyParticle);
+	}
+
+	function killPlayer() {
+		if (isPlayerDead) return;
+		isPlayerDead = true;
+		jumpPlayer.start();
+		gunFall.start();
+	
+		// Stop aiming actions and clear the loop interval
+		clearInterval(spawnEnemyInterval);
+		aimingTween.stop();
+		lowerGunTween.stop();
+		
+		jumpPlayer.start();
+	}
+})();
+
+

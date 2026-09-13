@@ -1,5 +1,6 @@
 // Import main dependencies
-import { Application, Assets, Sprite, Container, Text } from 'pixi.js';
+import { Application, Assets, Sprite, Container, Text, TextStyle } from 'pixi.js';
+import { sound } from '@pixi/sound';
 import { Tween, Easing } from '@tweenjs/tween.js';
 
 
@@ -10,304 +11,157 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	const app = new Application();
 	await app.init({ 
 	    resizeTo: window, 
-	    });
+	});
 	document.body.appendChild(app.canvas);
 	
 	const gameContainer = new Container();
 	const menuContainer = new Container();
+	const overContainer = new Container();
 
-	// Start with game hidden, menu visible
 	gameContainer.visible = false;
+	gameContainer.eventMode = 'static';
+	gameContainer.hitArea = app.screen;
 	menuContainer.visible = true;
+	overContainer.visible = false;
 
 	app.stage.addChild(gameContainer);
 	app.stage.addChild(menuContainer);
-
-	let gameStarted = false;
-
+	app.stage.addChild(overContainer);
 
 	// Init game objects
-	const backgroundTexture = await Assets.load('./assets/textures/factory.jpg');
-	const playerSprite = await Assets.load('./assets/textures/char0.png');
-	const gunSPrite = await Assets.load('./assets/textures/glock.png');
-	const particleSprite = await Assets.load('./assets/textures/candy.jpg');
-	const enemySprite = await Assets.load('./assets/textures/enemy.png');
-	const titlescreenSprite = await Assets.load('./assets/textures/titlescreen.png');
-	const playSprite = await Assets.load('./assets/textures/playbutton.png');
+	const playSprite = await Assets.load('./assets/textures/Start_btn.png');
+	const creditButtonSprite = await Assets.load('./assets/textures/credits_btn.png');
+	const gunSprite = await Assets.load('./assets/textures/handtangan.png');
+	const titlescreenSprite = await Assets.load('./assets/textures/12-removebg-preview.png');
+	const playerSprite = await Assets.load('./assets/textures/nohandtangan.png');
+	const bulletSprite = await Assets.load('./assets/textures/permen.png');
+	const enemySprite = await Assets.load('./assets/textures/zombie.png');
+	const backgroundTexture = await Assets.load('./assets/textures/background1.png');
+	const gameOverSprite = await Assets.load('./assets/textures/component1.png');
+	const restartSprite = await Assets.load('./assets/textures/group5.png');
+	const returnSprite = await Assets.load('./assets/textures/group4.png');
+	const fenceSprite = await Assets.load('./assets/textures/fance1.png');
+	const enemyParticleSprite = await Assets.load('./assets/textures/jigongnaga.png');
+	sound.add('click', './assets/sound/confirm.wav');
+	sound.add('hit', './assets/sound/hit.wav');
+	sound.add('fire', './assets/sound/fire.wav');
+	sound.add('bgm', './assets/sound/bgm.wav');
+
 
 	const background = new Sprite(backgroundTexture);
 	const player = new Sprite(playerSprite);
-	const bullet = new Sprite(particleSprite);
-	const gun = new Sprite(gunSPrite);
-	const enemy = new Sprite(enemySprite);
-	const enemyBullet = new Sprite(particleSprite);
+	const gun = new Sprite(gunSprite);
 	const titleScreen = new Sprite(titlescreenSprite);
 	const playButton = new Sprite(playSprite);
-	
-	background.width = app.screen.width;
-	background.height = app.screen.height;
-
-	bullet.width = 60;
-	bullet.height = 60;
-	enemy.width = 150;
-	enemy.height = 100;
-	enemyBullet.width = 40;
-	enemyBullet.height = 40;
-	enemyBullet.anchor.set(0.5);
-	enemyBullet.visible = false;
+	const gameOverScreen = new Sprite(gameOverSprite);
+	const restartButton = new Sprite(restartSprite);
+	const returnButton = new Sprite(returnSprite);
+	const fence = new Sprite(fenceSprite);
+	const creditsButton = new Sprite(creditButtonSprite);
 
 	gameContainer.addChild(background);
-	gameContainer.addChild(player);
+	//gameContainer.addChild(fence);
 	gameContainer.addChild(gun);
-	gameContainer.addChild(bullet);
-	gameContainer.addChild(enemy);
-	gameContainer.addChild(enemyBullet);
-
-	player.position.set(20, app.screen.height - player.height - 20);
-	bullet.anchor.set(0.5);
-	gun.position.set(player.width * 2 / 3 + 20, app.screen.height - player.height / 2 - 20);
-	gun.anchor.set(0.2, 0.5);
-
-	// Power-Up
-	const powerUps = [
-		'Double Damage',
-		'Rapid Fire',
-		'Shield',
-		'Bigger Bullet',
-		'Slow Enemy'
-	];
+	gameContainer.addChild(player);
+	menuContainer.addChild(titleScreen);
+	menuContainer.addChild(playButton);
+	overContainer.addChild(gameOverScreen);
+	overContainer.addChild(restartButton);
+	overContainer.addChild(returnButton);
 	
-	let isPowerUpChoosing = false;
+	fence.position.set(0, 200);
 
-	const powerUpContainer = new Container();
-	powerUpContainer.visible = false;
+	player.anchor.set(0.5);
+	player.position.set(player.width, app.screen.height - player.height / 2 - 200);
+	player.scale.set(1.5);
 
-	gameContainer.addChild(powerUpContainer);
+	gun.anchor.set(30/128, 0.5);
+	gun.position.set(player.position.x - 50, player.position.y);
+	gun.scale.set(1.5);
 
-	function getRandomPowerUps() {
+	titleScreen.scale.set(0.5);
+	titleScreen.width = app.screen.width / 2;
+	titleScreen.height = app.screen.height / 2;
 
-    	const shuffled = [...powerUps]
-        	.sort(() => Math.random() - 0.5);
+	playButton.anchor.set(0.5);
+	playButton.x = app.screen.width / 2;
+	playButton.y = app.screen.height / 2 + 100;
+	playButton.eventMode = 'static';
+	playButton.cursor = 'pointer';
+	playButton.scale.set(1.5);
 
-	    return shuffled.slice(0, 3);
-	}
+	gameOverScreen.anchor.set(0.5);
+	gameOverScreen.x = app.screen.width / 2;
+	gameOverScreen.y = app.screen.height / 3;
 
-	function showPowerUpMenu() {
+	restartButton.anchor.set(0.5);
+	restartButton.x = app.screen.width / 2 - 300;
+	restartButton.y = app.screen.height / 2 + 50;
+	restartButton.eventMode = 'static';
+	restartButton.cursor = 'pointer';
+	restartButton.scale.set(0.5);
 
-    isPowerUpChoosing = true;
-    gameStarted = false;
+	returnButton.anchor.set(0.5);
+	returnButton.x = app.screen.width / 2 + 300;
+	returnButton.y = app.screen.height / 2 + 50;
+	returnButton.eventMode = 'static';
+	returnButton.cursor = 'pointer';
+	returnButton.scale.set(0.5);
 
-    powerUpContainer.removeChildren();
-
-    const title = new Text({
-        text: 'CHOOSE POWER-UP',
-        style: {
-            fontSize: 40,
-            fill: 0xffffff
-        }
-    });
-
-    title.anchor.set(0.5);
-    title.x = app.screen.width / 2;
-    title.y = 150;
-
-    powerUpContainer.addChild(title);
-
-    const choices = getRandomPowerUps();
-
-    choices.forEach((powerUp, index) => {
-
-        const button = new Text({
-            text: powerUp,
-            style: {
-                fontSize: 28,
-                fill: 0xffffff
-            }
-        });
-
-        button.anchor.set(0.5);
-
-        button.x =
-            app.screen.width / 2 +
-            (index - 1) * 250;
-
-        button.y = app.screen.height / 2;
-
-        button.eventMode = 'static';
-        button.cursor = 'pointer';
-
-        button.on('pointerdown', () => {
-            selectPowerUp(powerUp);
-        });
-
-        powerUpContainer.addChild(button);
-    });
-
-    powerUpContainer.visible = true;
-	}
-
-	function selectPowerUp(powerUp) {
-
-    console.log('Selected Power-Up:', powerUp);
-
-    // Placeholder efek power-up
-    switch (powerUp) {
-
-        case 'Double Damage':
-            console.log('TODO: Double Damage');
-            break;
-
-        case 'Rapid Fire':
-            console.log('TODO: Rapid Fire');
-            break;
-
-        case 'Shield':
-            console.log('TODO: Shield');
-            break;
-
-        case 'Bigger Bullet':
-            console.log('TODO: Bigger Bullet');
-            break;
-
-        case 'Slow Enemy':
-            console.log('TODO: Slow Enemy');
-            break;
-    }
-
-    powerUpContainer.visible = false;
-    isPowerUpChoosing = false;
-
-    gameStarted = true;
-
-    spawnEnemy();
-	}
-	function checkPowerUp() {
-
-    if (score >= nextPowerUpScore) {
-
-        nextPowerUpScore += 100;
-
-        showPowerUpMenu();
-    }
-	}
-/*----[[ Enemy System ]]----*/
-
-	// Jumlah jalur
-	const laneCount = 5;
-
-	// Jarak antar jalur
-	const laneSpacing = 120;
-
-	// Posisi Y untuk setiap jalur
-	const lanes = [];
-
-	for (let i = 0; i < laneCount; i++) {
-		lanes.push(laneSpacing * (i + 1));
-	}
-
-	let isParryMode = false;
-	// Enemy speed
-	let enemySpeed = 3;
-	const enemySpeeds = [3, 8, 15];
-
-	// Score system
+	/*----[[ Core Game Systems Tuning ]]----*/
+	const bulletSpeed = 20;
+	const firerate = 500;
+	const enemyFireRateMS = 1500;
+	const enemyBulletSpeed = 8;
+	const aimingSpeed = 2000;
+	
 	let score = 0;
-	let nextPowerUpScore = 100;	
+	let gameStarted = false;
+	let isPlayerDead = false;
+
+	let enemies = [];
+	let bullets = [];
+	let enemyBullets = [];
+	let spawnEnemyInterval = null;
+	let recoil = 0;
+
+	// TODO: modify this
+	// UI Score Text Setup
 	const scoreText = new Text({
 		text: 'Score: 0',
 		style: {
 			fontSize: 32,
-			fill: 0xffffff
+			fill: 0x000000
 		}
 	});
-
 	scoreText.x = 20;
 	scoreText.y = 20;
-
 	gameContainer.addChild(scoreText);
 
-	// Status enemy
-	let isEnemyFlying = false;
+	// Health System Variables
+	let playerHealth = 3; 
+	const healthText = new Text({
+		text: 'Health: 3',
+		style: {
+			fontSize: 32
+		}
+	});
+	healthText.x = 20;
+	healthText.y = 60; // Positioned right under your score tracker
+	gameContainer.addChild(healthText);
 
-	let enemyStopX;
-	let enemyShootTimer = 0;
-	let hasEnemyShot = false;
-
-	const enemyShootDelay = 600;
-	const enemyBulletSpeed = 8;
-
-	let enemyBulletVelocity = {
-		x: 0,
-		y: 0
-	};
-	// Spawn enemy
-	function spawnEnemy() {
-
-		// Pilih jalur secara random
-		const randomLane = Math.floor(Math.random() * laneCount);
-
-		// Ambil posisi Y berdasarkan jalur yang dipilih
-		const laneY = lanes[randomLane];
-
-		const randomSpeed = Math.floor(Math.random() * enemySpeeds.length);
-		enemySpeed = enemySpeeds[randomSpeed];
-
-		const minStopX = 150;
-    	const maxStopX = app.screen.width - enemy.width * 1.5;
-
-		enemyStopX =
-        Math.random() * (maxStopX - minStopX) + minStopX;
-
-    	// Spawn dari kanan
-		enemy.position.set(
-			app.screen.width + enemy.width,
-			laneY
-		);
-
-		// Aktifkan enemy
-		enemy.visible = true;
-
-		// Tandai enemy sedang bergerak
-		isEnemyFlying = true;
+	/*----[[ Lane Mapping Setup ]]----*/
+	const laneCount = 5;
+	const laneSpacing = 120;
+	const lanes = [];
+	for (let i = 0; i < laneCount; i++) {
+		lanes.push(laneSpacing * (i + 1));
 	}
 
-	// Spawn enemy pertama
-	spawnEnemy();
-
-	function shootEnemyBullet() {
-
-    // Posisi awal peluru dari enemy
-    enemyBullet.position.set(
-        enemy.x,
-        enemy.y
-    );
-
-    // Hitung arah dari enemy ke player
-    const dx = player.x - enemy.x;
-    const dy = player.y - enemy.y;
-
-    const distance = Math.sqrt(
-        dx * dx + dy * dy
-    );
-
-    // Normalisasi arah
-    enemyBulletVelocity.x =
-        (dx / distance) * enemyBulletSpeed;
-
-    enemyBulletVelocity.y =
-        (dy / distance) * enemyBulletSpeed;
-
-    enemyBullet.visible = true;
-    hasEnemyShot = true;
-}
-
-	// TODO: Add a bullet firing feature
-	const aimingSpeed = 2000;
-	const bulletSpeed = 80;
+	// Tweens Declarations Mapping
 	let gunCopy = gun;
-	let bulletVelocity = { x: 0, y: 0 };
-	let isBulletFlying = false;
-	bullet.visible = false;
+	let playerCopy = player;
+
 	let aimingTween = new Tween(gunCopy)
 		.to({ angle: -70 }, aimingSpeed)
 		.easing(yoyo(Easing.Linear.InOut))
@@ -315,300 +169,343 @@ import { Tween, Easing } from '@tweenjs/tween.js';
 	let lowerGunTween = new Tween(gunCopy)
 		.to({ angle: 0 }, 100)
 		.easing(Easing.Quadratic.Out);
+	let gunFall = new Tween(gunCopy.position)
+		.to({ y: app.screen.height + gun.width * 2 }, 1000)
+		.easing(Easing.Quadratic.In);
+	let fallOffTheScreen = new Tween(playerCopy.position)
+		.to({ y: app.screen.height + 2 * player.height }, 1500)
+		.easing(Easing.Quadratic.In)
+		.onComplete(showsGameOver);
+	let jumpPlayer = new Tween(playerCopy.position)
+		.to({ y: app.screen.height / 2}, 1000)
+		.easing(Easing.Quadratic.Out)
+		.chain(fallOffTheScreen);
 
-/*----[[ Shoot Bullet ]]----*/
-
-	function shootBullet() {
-
-		// Jika masih ada bullet yang terbang,
-		// jangan menembak lagi
-		if (isBulletFlying) {
+	/*----[[ Main Loop Update Loop Engine ]]----*/
+	//
+	app.ticker.add((time) => {
+		if (!gameStarted) return;
+		
+		if (isPlayerDead) {
+			jumpPlayer.update();
+			fallOffTheScreen.update();
+			gunFall.update();
+			player.position.y = playerCopy.position.y;
+			player.angle += 12 * time.deltaTime;
 			return;
 		}
 
-
-		// Tampilkan bullet
-		bullet.visible = true;
-
-		// Bullet mulai dari posisi gun
-		bullet.position.set(
-			gun.x,
-			gun.y
-		);
-
-
-		// Ambil angle pistol
-		const angle =
-			gunCopy.angle * (Math.PI / 180);
-
-
-		// Hitung kecepatan berdasarkan arah pistol
-		bulletVelocity.x =
-			Math.cos(angle) * bulletSpeed;
-
-		bulletVelocity.y =
-			Math.sin(angle) * bulletSpeed;
-
-
-		// Bullet sedang terbang
-		isBulletFlying = true;
-	}
-
-	// Setup Title Background (Stretch to cover canvas or place centrally)
-	titleScreen.width = app.screen.width;
-	titleScreen.height = app.screen.height;
-
-	// Setup Play Button
-	playButton.anchor.set(0.5);
-	playButton.x = app.screen.width / 2;
-	playButton.y = app.screen.height / 2 + 100; // Positioned below center text
-	
-	// Make Play Button Interactive
-	playButton.eventMode = 'static';
-	playButton.cursor = 'pointer';
-
-	// Add menu items to the MENU container
-	menuContainer.addChild(titleScreen);
-	menuContainer.addChild(playButton);
-
-	/*----[[ Menu Signals ]]----*/
-	// Handle Clicking the Play Button to start the game
-	playButton.on('pointerdown', () => {
-		menuContainer.visible = false;
-		gameContainer.visible = true;
-		gameStarted = true;
-		
-		// Start your gameplay elements here
-		spawnEnemy();
-		aimingTween.start();
-	});
-		window.addEventListener('keydown', (event) => {
-
-		if (!gameStarted) return;
-
-		if (event.code === 'Space') {
-
-			isParryMode = !isParryMode;
-
-			console.log(
-				'Parry Mode:',
-				isParryMode ? 'ON' : 'OFF'
-			);
-		}
-	});
-	
-	/*----[[ Updates ]]----*/
-	app.ticker.add((time) => {
-
-		// Only calculate physics if game is active
-		if (!gameStarted) return;
-
-		// Update aim
+		// Update weapon aiming configuration parameters
 		aimingTween.update();
 		lowerGunTween.update();
 		gun.angle = gunCopy.angle;
 
-		if (isEnemyFlying) {
-
-    enemy.x -= enemySpeed * time.deltaTime;
-
-    if (enemy.x <= enemyStopX) {
-
-        enemy.x = enemyStopX;
-
-        isEnemyFlying = false;
-
-        // Reset timer tembakan
-        enemyShootTimer = 0;
-        hasEnemyShot = false;
-    }
-
-	} else if (enemy.visible && !hasEnemyShot) {
-
-		// Hitung waktu enemy sudah berhenti
-		enemyShootTimer += time.deltaMS;
-
-		// Setelah 0,6 detik, enemy menembak
-		if (enemyShootTimer >= enemyShootDelay) {
-			shootEnemyBullet();
+		recoil += time.deltaMS;
+		if (recoil >= firerate) {
+			recoil = firerate;
 		}
-	}
 
-	if (enemyBullet.visible) {
+		// Update and move all active enemy clones
+		for (let i = enemies.length - 1; i >= 0; i--) {
+			const currentEnemy = enemies[i];
 
-    enemyBullet.x +=
-        enemyBulletVelocity.x * time.deltaTime;
+			if (currentEnemy.isFlying) {
+				currentEnemy.x -= currentEnemy.speed * time.deltaTime;
 
-    enemyBullet.y +=
-        enemyBulletVelocity.y * time.deltaTime;
-
-    // Kalau keluar layar
-    if (
-        enemyBullet.x < 0 ||
-        enemyBullet.x > app.screen.width ||
-        enemyBullet.y < 0 ||
-        enemyBullet.y > app.screen.height
-    ) {
-        enemyBullet.visible = false;
-    }
-}
-		// Update bullet position
-		if (isBulletFlying) {
-
-			// Gerakkan bullet
-			bullet.x +=
-				bulletVelocity.x * time.deltaTime;
-
-			bullet.y +=
-				bulletVelocity.y * time.deltaTime;
-
-
-			/*---- Bullet keluar layar ----*/
-
-			if (
-				bullet.x < 0 ||
-				bullet.x > app.screen.width ||
-				bullet.y < 0 ||
-				bullet.y > app.screen.height
-			) {
-
-				// Sembunyikan bullet
-				bullet.visible = false;
-
-				// Bullet tidak terbang
-				isBulletFlying = false;
+				if (currentEnemy.x <= currentEnemy.stopX) {
+					currentEnemy.x = currentEnemy.stopX;
+					currentEnemy.isFlying = false;
+				}
 			}
-
-
-			/*---- Bullet Collision Enemy ----*/
-
-			if (isBulletFlying && enemy.visible) {
-
-				const bulletBounds =
-					bullet.getBounds();
-
-				const enemyBounds =
-					enemy.getBounds();
-
-
-				// Cek apakah bullet menyentuh enemy
-				if (
-					bulletBounds.x < enemyBounds.x + enemyBounds.width &&
-					bulletBounds.x + bulletBounds.width > enemyBounds.x &&
-					bulletBounds.y < enemyBounds.y + enemyBounds.height &&
-					bulletBounds.y + bulletBounds.height > enemyBounds.y
-				) {
-
-					/*---- Enemy Eliminated ----*/
-
-					// Sembunyikan bullet
-					bullet.visible = false;
-
-					// Bullet sudah tidak terbang
-					isBulletFlying = false;
-
-
-					// Hilangkan enemy
-					enemy.visible = false;
-
-					// Enemy sudah tidak bergerak
-					isEnemyFlying = false;
-
-					// Tambah score
-					score += 10;
-					scoreText.text = `Score: ${score}`;
-
-					// Cek power-up
-					checkPowerUp();
-
-					// Spawn enemy berikutnya
-					if (gameStarted) {
-						spawnEnemy();
-					}
-
+			else {
+				currentEnemy.shootTimer += time.deltaMS;
+				if (currentEnemy.shootTimer >= enemyFireRateMS) {
+					enemyShoot(currentEnemy, player.position.x, player.position.y);
+					currentEnemy.shootTimer = 0;
 				}
 			}
 		}
 
-		if (enemyBullet.visible) {
+		// Move and Boundary Check Cloned Enemy Projectiles
+		for (let eb = enemyBullets.length - 1; eb >= 0; eb--) {
+			const activeEnemyBullet = enemyBullets[eb];
+			
+			activeEnemyBullet.x += activeEnemyBullet.velocity.x * time.deltaTime;
+			activeEnemyBullet.y += activeEnemyBullet.velocity.y * time.deltaTime;
 
-    const enemyBulletBounds =
-        enemyBullet.getBounds();
+			// Handle Bullet Intercept Damage Processing Matrices
+			const bulletBounds = activeEnemyBullet.getBounds();
+			const playerBounds = player.getBounds();
 
-    const playerBounds =
-        player.getBounds();
+			if (
+				bulletBounds.x < playerBounds.x + playerBounds.width &&
+				bulletBounds.x + bulletBounds.width > playerBounds.x &&
+				bulletBounds.y < playerBounds.y + playerBounds.height &&
+				bulletBounds.y + playerBounds.height > playerBounds.y
+			) {
+				gameContainer.removeChild(activeEnemyBullet);
+				enemyBullets.splice(eb, 1);
+				if (!isPlayerDead) {
+					playerHealth--;
+					healthText.text = `Health: ${playerHealth}`;
+					if (playerHealth <= 0) {
+						killPlayer();
+					}
+				}
+				continue;
+			}
 
-		if (
-			enemyBulletBounds.x <
-				playerBounds.x + playerBounds.width &&
-			enemyBulletBounds.x +
-				enemyBulletBounds.width >
-				playerBounds.x &&
-			enemyBulletBounds.y <
-				playerBounds.y + playerBounds.height &&
-			enemyBulletBounds.y +
-				enemyBulletBounds.height >
-				playerBounds.y
-		) {
-
-			if (isParryMode) {
-
-				// Peluru berhasil ditepis
-				enemyBullet.visible = false;
-
-				console.log('ATTACK PARRIED!');
-
-			} else {
-
-				// Player terkena serangan
-				enemyBullet.visible = false;
-
-				console.log('PLAYER HIT!');
-
-				// Untuk sementara
-				// game dihentikan
-				gameStarted = false;
+			// Clean off-screen particles
+			if (
+				activeEnemyBullet.x < -50 || activeEnemyBullet.x > app.screen.width + 50 ||
+				activeEnemyBullet.y < -50 || activeEnemyBullet.y > app.screen.height + 50
+			) {
+				gameContainer.removeChild(activeEnemyBullet);
+				enemyBullets.splice(eb, 1);
 			}
 		}
-	}	
+
+		// Update, move, and bound-check all active friendly bullet clones
+		for (let b = bullets.length - 1; b >= 0; b--) {
+			const currentBullet = bullets[b];
+
+			currentBullet.x += currentBullet.velocity.x * time.deltaTime;
+			currentBullet.y += currentBullet.velocity.y * time.deltaTime;
+
+			if (
+				currentBullet.x < 0 || currentBullet.x > app.screen.width ||
+				currentBullet.y < 0 || currentBullet.y > app.screen.height
+			) {
+				gameContainer.removeChild(currentBullet);
+				bullets.splice(b, 1);
+				continue;
+			}
+
+			// Intercept Enemy Hit Collision Checking Logic Matrix
+			for (let e = enemies.length - 1; e >= 0; e--) {
+				const currentEnemy = enemies[e];
+
+				const friendlyBulletBounds = currentBullet.getBounds();
+				const enemyBounds = currentEnemy.getBounds();
+
+				if (
+					friendlyBulletBounds.x < enemyBounds.x + enemyBounds.width &&
+					friendlyBulletBounds.x + friendlyBulletBounds.width > enemyBounds.x &&
+					friendlyBulletBounds.y < enemyBounds.y + enemyBounds.height &&
+					friendlyBulletBounds.y + friendlyBulletBounds.height > enemyBounds.y
+				) {
+					gameContainer.removeChild(currentBullet);
+					bullets.splice(b, 1);
+
+					gameContainer.removeChild(currentEnemy);
+					enemies.splice(e, 1);
+
+					score += 10;
+					scoreText.text = `Score: ${score}`;
+					break;
+				}
+			}
+		}
 	});
 
+	/*----[[ Global Device Input Signals Mapping ]]----*/
+	playButton.on('pointerdown', (ev) => {
+		sound.play('bgm', { loop: true, volume: 0.3 });
+		ev.stopPropagation();
+		menuContainer.visible = false;
+		gameContainer.visible = true;
+		gameStarted = true;
+	player.position.set(player.width, app.screen.height - player.height / 2 - 200);
+	player.scale.set(1.5);
 
-	/*----[[ Signals ]]----*/
-	// Make canvas able to receive touch input
-	gameContainer.eventMode = 'static';
-	gameContainer.hitArea = app.screen;
+	gun.anchor.set(30/128, 0.5);
+	gun.position.set(player.position.x - 50, player.position.y);
 
+		playerHealth = 3;
+		healthText.text = "Health: 3";
+		spawnEnemy();
+		spawnEnemyInterval = setInterval(spawnEnemy, 2000);
+		aimingTween.start();
+	});
 	gameContainer.on('pointerdown', () => {
-		if (!gameStarted) return;
+		if (!gameStarted || isPlayerDead) return;
 		aimingTween.start();
 		lowerGunTween.stop();
 	});
 	gameContainer.on('pointerup', () => {
-		if (!gameStarted) return;
-		aimingTween.stop();
-		shootBullet();
-		lowerGunTween.delay(100);
-		lowerGunTween.startFromCurrentValues();
-
+		releaseHoldCallback();
 	});
 	gameContainer.on('pointerupoutside', () => {
-		if (!gameStarted) return;
+		releaseHoldCallback();
+	});
+
+	returnButton.on('pointerdown', (ev) => {
+		ev.stopPropagation();
+		overContainer.visible = false;
+		gameContainer.visible = false;
+		menuContainer.visible = true;
+		gameStarted = false;
+		isPlayerDead = false;
+		score = 0;
+		scoreText.text = 'Score: 0';
+
+		enemies.forEach(e => gameContainer.removeChild(e));
+		bullets.forEach(b => gameContainer.removeChild(b));
+		enemyBullets.forEach(eb => gameContainer.removeChild(eb));
+		enemies = [];
+		bullets = [];
+		enemyBullets = [];
+	player.position.set(player.width, app.screen.height - player.height / 2 - 200);
+	player.scale.set(1.5);
+
+	gun.anchor.set(30/128, 0.5);
+	gun.position.set(player.position.x - 50, player.position.y);
+
+		player.angle = 0;
+		playerHealth = 3;
+		healthText.text = "Health: 3";
+		
+		if (!gameContainer.children.includes(gun)) {
+			gameContainer.addChild(gun);
+		}
+		gun.angle = 0;
+	});
+
+	restartButton.on('pointerdown', (ev) => {
+		ev.stopPropagation();
+		overContainer.visible = false;
+		isPlayerDead = false;
+	player.position.set(player.width, app.screen.height - player.height / 2 - 200);
+	player.scale.set(1.5);
+
+	gun.anchor.set(30/128, 0.5);
+	gun.position.set(player.position.x - 50, player.position.y);
+
+		enemies.forEach(e => gameContainer.removeChild(e));
+		bullets.forEach(b => gameContainer.removeChild(b));
+		enemyBullets.forEach(eb => gameContainer.removeChild(eb));
+		enemies = [];
+		bullets = [];
+		enemyBullets = [];
+		score = 0;
+		scoreText.text = 'Score: 0';
+		player.angle = 0;
+		playerHealth = 3;
+		healthText.text = "Health: 3";
+
+		if (!gameContainer.children.includes(gun)) {
+			gameContainer.addChild(gun);
+		}
+
+		gun.angle = 0;
+
+		spawnEnemy();
+		spawnEnemyInterval = setInterval(spawnEnemy, 2000);
+		aimingTween.start();
+	});
+
+	/*----[[ Functional Engine Subsystems Helpers ]]----*/
+	function releaseHoldCallback() {
+		if (!gameStarted || isPlayerDead) return;
 		aimingTween.stop();
 		shootBullet();
 		lowerGunTween.delay(100);
 		lowerGunTween.startFromCurrentValues();
-	});
+	}
+
+	function spawnEnemy() {
+		if (!gameStarted || isPlayerDead) return;
+
+		const newEnemy = new Sprite(enemySprite);
+		newEnemy.width = 150;
+		newEnemy.height = 100;
+
+		const randomLane = Math.floor(Math.random() * laneCount);
+		const laneY = lanes[randomLane];
+
+		const enemySpeeds = [3, 8, 14];
+		const randomSpeed = Math.floor(Math.random() * enemySpeeds.length);
+
+		newEnemy.speed = enemySpeeds[randomSpeed];
+		newEnemy.isFlying = true;
+		newEnemy.shootTimer = 0;
+
+		const minStopX = app.screen.width * 0.2;
+		const maxStopX = app.screen.width * 0.8;
+		newEnemy.stopX = Math.random() * (maxStopX - minStopX) + minStopX;
+
+		newEnemy.position.set(app.screen.width + newEnemy.width, laneY);
+
+		gameContainer.addChild(newEnemy);
+		enemies.push(newEnemy);
+	}
+
+	function shootBullet() {
+		if (recoil < firerate) return;
+
+		const newBullet = new Sprite(bulletSprite);
+		newBullet.width = 60;
+		newBullet.height = 60;
+		newBullet.anchor.set(0.5);
+		newBullet.position.set(gun.x, gun.y);
+
+		const angle = gunCopy.angle * (Math.PI / 180);
+		newBullet.velocity = {
+			x: Math.cos(angle) * bulletSpeed,
+			y: Math.sin(angle) * bulletSpeed
+		};
+
+		gameContainer.addChild(newBullet);
+		bullets.push(newBullet);
+		recoil = 0;
+	}
+
+	function enemyShoot(shootingEnemy, targetX, targetY) {
+		const enemyParticle = new Sprite(enemyParticleSprite);
+		enemyParticle.width = 40;
+		enemyParticle.height = 40;
+		enemyParticle.anchor.set(0.5);
+		
+		enemyParticle.position.set(
+			shootingEnemy.x + shootingEnemy.width / 4,
+			shootingEnemy.y + shootingEnemy.height / 2
+		);
+		enemyParticle.tint = 0xff3333;
+
+		const diffX = targetX - enemyParticle.x;
+		const diffY = targetY - enemyParticle.y;
+		const angle = Math.atan2(diffY, diffX);
+
+		enemyParticle.velocity = {
+			x: Math.cos(angle) * enemyBulletSpeed,
+			y: Math.sin(angle) * enemyBulletSpeed
+		};
+
+		gameContainer.addChild(enemyParticle);
+		enemyBullets.push(enemyParticle);
+	}
+
+	function killPlayer() {
+		if (isPlayerDead) return;
+		isPlayerDead = true;
+
+		clearInterval(spawnEnemyInterval);
+		aimingTween.stop();
+		lowerGunTween.stop();
+
+		jumpPlayer.start();
+		gunFall.start();
+		sound.stop('bgm');
+	}
+
+	function showsGameOver() {
+		overContainer.visible = true;
+	}
 })();
 
-// Helper functions
 function yoyo(easingFunction) {
-	return (time) => {
-		if (time < 0.5) {
-			return easingFunction(time * 2);
-		}
-		else {
-			return easingFunction((1 - time) * 2);
-		}
-	};
+    return (time) => {
+        if (time < 0.5) return easingFunction(time * 2);
+        return easingFunction((1 - time) * 2);
+    };
 }
